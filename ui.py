@@ -77,7 +77,7 @@ class GameUI:
             self.draw_menu()
 
     def draw_menu(self) -> None:
-        title = self.font_title.render("МОРСКОЙ БОЙ", True, TEXT_TITLE)
+        title = self.font_title.render("МОРСКОЙ БOЙ", True, TEXT_TITLE)
         help1 = self.font_small.render("ESC — в меню. В расстановке R поворачивает корабль.", True, TEXT_SUBTLE)
 
         self.screen.blit(title, (WINDOW_WIDTH // 2 - title.get_width() // 2, 50))
