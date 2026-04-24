@@ -26,9 +26,7 @@ from ui import GameUI
 class Game:
     def __init__(self) -> None:
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-        pygame.display.set_caption("Морской бой — Курсовая работа")
         self.clock = pygame.time.Clock()
-
         def choose_font(candidates: list[str], size: int, bold: bool = False) -> pygame.font.Font:
             for name in candidates:
                 path = pygame.font.match_font(name, bold=bold)
