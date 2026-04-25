@@ -13,7 +13,7 @@ from core import (
     LEFT_MARGIN,
     OVERLAY,
     RED,
-    ScreenState,
+    Screen,
     TOP_MARGIN,
     WHITE,
     TEXT_TITLE,
@@ -23,10 +23,10 @@ from core import (
     WINDOW_HEIGHT,
     WINDOW_WIDTH,
     YELLOW,
-    Direction,
+    Dir,
     Board,
     Ship,
-    CellState,
+    Cell,
 )
 
 if TYPE_CHECKING:
@@ -43,35 +43,35 @@ class GameUI:
     def draw(self) -> None:
         self.assets.tile(self.screen, self.assets.background, self.screen.get_rect())
 
-        if self.state == ScreenState.MENU:
+        if self.state == Screen.MENU:
             self.draw_menu()
-        elif self.state == ScreenState.SETUP:
+        elif self.state == Screen.SETUP:
             self.draw_setup()
-        elif self.state == ScreenState.BATTLE:
+        elif self.state == Screen.BATTLE:
             self.draw_battle()
-        elif self.state == ScreenState.PASS:
-            self.draw_under_pass()
-            self.draw_pass_overlay()
-        elif self.state == ScreenState.PAUSE:
+        elif self.state == Screen.PASS:
+            self.draw_under_per()
+            self.draw_per()
+        elif self.state == Screen.PAUSE:
             self.draw_under_pause()
-            self.draw_pause_overlay()
-        elif self.state == ScreenState.GAME_OVER:
+            self.draw_pause()
+        elif self.state == Screen.GAME_OVER:
             self.draw_battle()
-            self.draw_game_over()
+            self.draw_over()
 
-    def draw_under_pass(self) -> None:
-        if self.pending_state == ScreenState.SETUP:
+    def draw_under_per(self) -> None:
+        if self.next_st == Screen.SETUP:
             self.draw_setup()
-        elif self.pending_state == ScreenState.BATTLE:
+        elif self.next_st == Screen.BATTLE:
             self.draw_battle()
         else:
             self.draw_menu()
 
 
     def draw_under_pause(self) -> None:
-        if self.previous_state == ScreenState.SETUP:
+        if self.prev_st == Screen.SETUP:
             self.draw_setup()
-        elif self.previous_state == ScreenState.BATTLE:
+        elif self.prev_st == Screen.BATTLE:
             self.draw_battle()
         else:
             self.draw_menu()
@@ -90,21 +90,21 @@ class GameUI:
         self.screen.blit(label, (WINDOW_WIDTH // 2 - label.get_width() // 2, 354))
 
         for btn in self.menu_buttons():
-            active = btn.key == self.difficulty
+            active = btn.key == self.uroven
             self.assets.draw_button(self.screen, btn.rect, btn.style, btn.text, self.font_btn, active=active)
 
     def draw_setup(self) -> None:
-        title_text = f"РАССТАНОВКА ФЛОТА — ИГРОК {self.setup_player}" if self.mode == "pvp" else "РАССТАНОВКА КОРАБЛЕЙ"
-        title = self.font_h2.render(title_text, True, TEXT_TITLE)
-        shadow = self.font_h2.render(title_text, True, TEXT_SHADOW)
+        title_txt = f"РАССТАНОВКА ФЛОТА — ИГРОК {self.set_player}" if self.mode == "pvp" else "РАССТАНОВКА КОРАБЛЕЙ"
+        title = self.font_h2.render(title_txt, True, TEXT_TITLE)
+        shadow = self.font_h2.render(title_txt, True, TEXT_SHADOW)
         tx = WINDOW_WIDTH // 2 - title.get_width() // 2
         self.screen.blit(shadow, (tx + 2, 24))
         self.screen.blit(title, (tx, 22))
 
-        self.draw_board(self.current_setup_board(), self.left_board_pos, show_ships=True, hide_live_ships=False, preview=True)
+        self.draw_board(self.tek_pole(), self.left_board_pos, show_ship=True, hide_live=False, preview=True)
 
         rules_panel = pygame.Rect(LEFT_MARGIN + BOARD_SIZE + 28, TOP_MARGIN, 360, 240)
-        rules_content = self.assets.draw_headered_panel(
+        rules_cont = self.assets.draw_headered_panel(
             self.screen, rules_panel, "ПРАВИЛА", self.font_text, TEXT_TITLE, TEXT_SHADOW
         )
 
@@ -116,128 +116,128 @@ class GameUI:
         ]
         for i, line in enumerate(rules):
             surf = self.font_small.render(line, True, TEXT_MAIN)
-            self.screen.blit(surf, (rules_content.x + 6, rules_content.y + 4 + i * 21))
+            self.screen.blit(surf, (rules_cont.x + 6, rules_cont.y + 4 + i * 21))
 
-        state_y = rules_content.y + 102
-        if self.error_text:
-            surf = self.font_small.render(self.error_text, True, (224, 174, 108))
-        elif self.remaining_ships:
-            size = self.remaining_ships[self.selected_ship_index]
-            direction = "ГОРИЗОНТАЛЬНО" if self.ship_direction == Direction.HORIZONTAL else "ВЕРТИКАЛЬНО"
+        st_y = rules_cont.y + 102
+        if self.err:
+            surf = self.font_small.render(self.err, True, (224, 174, 108))
+        elif self.ost_kor:
+            size = self.ost_kor[self.vib_kor]
+            direction = "ГОРИЗОНТАЛЬНО" if self.napr == Dir.HORIZONTAL else "ВЕРТИКАЛЬНО"
             surf = self.font_small.render(f"ВЫБРАН: {size} КЛ., {direction}", True, TEXT_MAIN)
         else:
             surf = self.font_small.render("ФЛОТ ГОТОВ — МОЖНО НАЧИНАТЬ", True, TEXT_MAIN)
-        self.screen.blit(surf, (rules_content.x + 6, state_y))
+        self.screen.blit(surf, (rules_cont.x + 6, st_y))
 
-        reserve_panel = pygame.Rect(LEFT_MARGIN, TOP_MARGIN + BOARD_SIZE + 12, BOARD_SIZE + 96, 120)
-        reserve_content = self.assets.draw_headered_panel(
-            self.screen, reserve_panel, "РЕЗЕРВ", self.font_text, TEXT_TITLE, TEXT_SHADOW
+        res_panel = pygame.Rect(LEFT_MARGIN, TOP_MARGIN + BOARD_SIZE + 12, BOARD_SIZE + 96, 120)
+        res_content = self.assets.draw_headered_panel(
+            self.screen, res_panel, "РЕЗЕРВ", self.font_text, TEXT_TITLE, TEXT_SHADOW
         )
 
-        positions = self.get_setup_selector_positions(reserve_content)
-        for i, size in enumerate(self.remaining_ships):
-            icon_x, icon_y = positions[i]
+        positions = self.get_sel_pos(res_content)
+        for i, size in enumerate(self.ost_kor):
+            ix, iy = positions[i]
             icon = self.assets.scaled(f"setup_remain_{size}", self.assets.ship_h[size], (size * 16, 14))
-            self.screen.blit(icon, (icon_x, icon_y))
-            if i == self.selected_ship_index:
-                sel = pygame.Rect(icon_x - 4, icon_y - 3, icon.get_width() + 8, icon.get_height() + 6)
+            self.screen.blit(icon, (ix, iy))
+            if i == self.vib_kor:
+                sel = pygame.Rect(ix - 4, iy - 3, icon.get_width() + 8, icon.get_height() + 6)
                 pygame.draw.rect(self.screen, YELLOW, sel, 2)
 
         for btn in self.setup_buttons():
-            active = btn.key == "start" and not self.remaining_ships
+            active = btn.key == "start" and not self.ost_kor
             self.assets.draw_button(self.screen, btn.rect, btn.style, btn.text, self.font_btn, active=active)
 
     def draw_battle(self) -> None:
         if self.mode == "pve":
-            title_text = "ВАШ ХОД" if self.turn_owner == 1 else "ХОД КОМПЬЮТЕРА"
-            left_board = self.board_p1
-            right_board = self.board_p2
+            title_txt = "ВАШ ХОД" if self.ochered == 1 else "ХОД КОМПЬЮТЕРА"
+            l_board = self.board_p1
+            r_board = self.board_p2
         else:
-            title_text = f"ХОД ИГРОКА {self.turn_owner}"
-            left_board = self.board_for(self.turn_owner)
-            right_board = self.enemy_board_for(self.turn_owner)
+            title_txt = f"ХОД ИГРОКА {self.ochered}"
+            l_board = self.board_for(self.ochered)
+            r_board = self.pole_vraga(self.ochered)
 
-        self.draw_turn_header(title_text, self.mode == "pve" and self.turn_owner != 1)
+        self.draw_head(title_txt, self.mode == "pve" and self.ochered != 1)
 
-        self.draw_board(left_board, self.left_board_pos, show_ships=True, hide_live_ships=False, preview=False)
-        self.draw_board(right_board, self.right_board_pos, show_ships=True, hide_live_ships=True, preview=False)
+        self.draw_board(l_board, self.left_board_pos, show_ship=True, hide_live=False, preview=False)
+        self.draw_board(r_board, self.right_board_pos, show_ship=True, hide_live=True, preview=False)
 
-        left_label = self.font_text.render("Ваше поле", True, TEXT_MAIN)
-        right_label = self.font_text.render("Поле противника", True, TEXT_MAIN)
-        left_shadow = self.font_text.render("Ваше поле", True, TEXT_SHADOW)
-        right_shadow = self.font_text.render("Поле противника", True, TEXT_SHADOW)
+        l_label = self.font_text.render("Ваше поле", True, TEXT_MAIN)
+        r_label = self.font_text.render("Поле противника", True, TEXT_MAIN)
+        l_shadow = self.font_text.render("Ваше поле", True, TEXT_SHADOW)
+        r_shadow = self.font_text.render("Поле противника", True, TEXT_SHADOW)
 
         left_x = self.left_board_pos[0]
         left_y = self.left_board_pos[1] - 30
         right_x = self.right_board_pos[0]
         right_y = self.right_board_pos[1] - 30
-        self.screen.blit(left_shadow, (left_x + 2, left_y + 2))
-        self.screen.blit(right_shadow, (right_x + 2, right_y + 2))
-        self.screen.blit(left_label, (left_x, left_y))
-        self.screen.blit(right_label, (right_x, right_y))
+        self.screen.blit(l_shadow, (left_x + 2, left_y + 2))
+        self.screen.blit(r_shadow, (right_x + 2, right_y + 2))
+        self.screen.blit(l_label, (left_x, left_y))
+        self.screen.blit(r_label, (right_x, right_y))
 
-        left_alive = [ship for ship in left_board.ships if not ship.destroyed]
-        right_alive = [ship for ship in right_board.ships if not ship.destroyed]
+        l_live = [ship for ship in l_board.ships if not ship.dead]
+        r_live = [ship for ship in r_board.ships if not ship.dead]
 
-        stats_panel = pygame.Rect(LEFT_MARGIN, TOP_MARGIN + BOARD_SIZE + 16, WINDOW_WIDTH - LEFT_MARGIN * 2, 166)
-        self.assets.draw_panel(self.screen, stats_panel)
+        stat_panel = pygame.Rect(LEFT_MARGIN, TOP_MARGIN + BOARD_SIZE + 16, WINDOW_WIDTH - LEFT_MARGIN * 2, 166)
+        self.assets.draw_panel(self.screen, stat_panel)
 
-        left_box = pygame.Rect(self.left_board_pos[0], stats_panel.y + 8, 370, 150)
-        right_box = pygame.Rect(self.right_board_pos[0], stats_panel.y + 8, 370, 150)
+        l_box = pygame.Rect(self.left_board_pos[0], stat_panel.y + 8, 370, 150)
+        r_box = pygame.Rect(self.right_board_pos[0], stat_panel.y + 8, 370, 150)
 
-        left_content = self.assets.draw_headered_panel(
-            self.screen, left_box, "РЕЗЕРВ", self.font_text, TEXT_TITLE, TEXT_SHADOW
+        l_cont = self.assets.draw_headered_panel(
+            self.screen, l_box, "РЕЗЕРВ", self.font_text, TEXT_TITLE, TEXT_SHADOW
         )
-        right_content = self.assets.draw_headered_panel(
-            self.screen, right_box, "РЕЗЕРВ ПРОТИВНИКА", self.font_text, TEXT_TITLE, TEXT_SHADOW
+        r_cont = self.assets.draw_headered_panel(
+            self.screen, r_box, "РЕЗЕРВ ПРОТИВНИКА", self.font_text, TEXT_TITLE, TEXT_SHADOW
         )
 
-        self.draw_reserve_icons(left_content, left_alive, "reserve_left")
-        self.draw_reserve_icons(right_content, right_alive, "reserve_right")
+        self.draw_icons(l_cont, l_live, "reserve_left")
+        self.draw_icons(r_cont, r_live, "reserve_right")
 
-    def draw_reserve_icons(self, content_rect: pygame.Rect, alive_ships, cache_prefix: str) -> None:
+    def draw_icons(self, content_rect: pygame.Rect, live_ships, cache_pref: str) -> None:
         x = content_rect.x + 8
         y = content_rect.y + 8
-        row_height = 30
-        current_row = 0
+        row_h = 30
+        cur_row = 0
 
-        for ship in sorted(alive_ships, key=lambda s: (-s.size, s.positions[0][1], s.positions[0][0])):
+        for ship in sorted(live_ships, key=lambda s: (-s.size, s.positions[0][1], s.positions[0][0])):
             icon = self.assets.scaled(
-                f"{cache_prefix}_{ship.size}",
+                f"{cache_pref}_{ship.size}",
                 self.assets.ship_h[ship.size],
                 (ship.size * 17, 15),
             )
             if x + icon.get_width() > content_rect.right - 8:
-                current_row += 1
+                cur_row += 1
                 x = content_rect.x + 8
-                y = content_rect.y + 8 + current_row * row_height
-            if current_row > 1:
+                y = content_rect.y + 8 + cur_row * row_h
+            if cur_row > 1:
                 break
             self.screen.blit(icon, (x, y))
             x += icon.get_width() + 14
 
 
-    def draw_turn_header(self, title_text: str, show_hourglass: bool) -> None:
-        text = self.font_h2.render(title_text, True, TEXT_TITLE)
-        shadow = self.font_h2.render(title_text, True, TEXT_SHADOW)
+    def draw_head(self, title_txt: str, show_hour: bool) -> None:
+        text = self.font_h2.render(title_txt, True, TEXT_TITLE)
+        shadow = self.font_h2.render(title_txt, True, TEXT_SHADOW)
 
         icon_w = 0
         gap = 10
-        if show_hourglass:
+        if show_hour:
             icon_w = 18
 
-        total_w = text.get_width() + (icon_w + gap if show_hourglass else 0)
+        total_w = text.get_width() + (icon_w + gap if show_hour else 0)
         start_x = WINDOW_WIDTH // 2 - total_w // 2
         y = 28
 
-        if show_hourglass:
-            self.draw_hourglass_icon(start_x, y + 4)
+        if show_hour:
+            self.draw_hour(start_x, y + 4)
             start_x += icon_w + gap
 
         self.screen.blit(shadow, (start_x + 2, y + 2))
         self.screen.blit(text, (start_x, y))
 
-    def draw_hourglass_icon(self, x: int, y: int) -> None:
+    def draw_hour(self, x: int, y: int) -> None:
         c1 = (214, 224, 236)
         c2 = (150, 164, 182)
         c3 = (68, 78, 96)
@@ -249,11 +249,11 @@ class GameUI:
         pygame.draw.line(self.screen, c2, (x + 13, y + 13), (x + 8, y + 7), 1)
         pygame.draw.line(self.screen, c3, (x + 8, y + 2), (x + 8, y + 12), 1)
 
-    def draw_board(self, board: Board, origin: Tuple[int, int], show_ships: bool,
-                   hide_live_ships: bool, preview: bool) -> None:
+    def draw_board(self, board: Board, origin: Tuple[int, int], show_ship: bool,
+                   hide_live: bool, preview: bool) -> None:
         ox, oy = origin
-        board_rect = pygame.Rect(ox - 4, oy - 4, BOARD_SIZE + 8, BOARD_SIZE + 8)
-        self.assets.draw_panel(self.screen, board_rect)
+        b_rect = pygame.Rect(ox - 4, oy - 4, BOARD_SIZE + 8, BOARD_SIZE + 8)
+        self.assets.draw_panel(self.screen, b_rect)
 
         water_tile = self.assets.scaled("water_cell", self.assets.water, (CELL_SIZE, CELL_SIZE))
         for y in range(GRID_SIZE):
@@ -261,9 +261,9 @@ class GameUI:
                 rect = pygame.Rect(ox + x * CELL_SIZE, oy + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 self.screen.blit(water_tile, rect)
 
-        if show_ships:
+        if show_ship:
             for ship in board.ships:
-                if hide_live_ships and not ship.destroyed:
+                if hide_live and not ship.dead:
                     continue
                 self.draw_ship(ship, ox, oy)
 
@@ -273,24 +273,24 @@ class GameUI:
             for x in range(GRID_SIZE):
                 rect = pygame.Rect(ox + x * CELL_SIZE, oy + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 state = board.grid[y][x]
-                if state == CellState.MISS:
+                if state == Cell.MISS:
                     self.screen.blit(miss_fx, rect)
-                elif state in (CellState.HIT, CellState.DESTROYED):
+                elif state in (Cell.HIT, Cell.DESTROYED):
                     self.screen.blit(hit_fx, rect)
-                    if state == CellState.DESTROYED:
+                    if state == Cell.DESTROYED:
                         shade = pygame.Surface((CELL_SIZE, CELL_SIZE), pygame.SRCALPHA)
                         shade.fill((0, 0, 0, 70))
                         self.screen.blit(shade, rect)
 
                 pygame.draw.rect(self.screen, GRID_BLUE, rect, 1)
 
-        if preview and self.state == ScreenState.SETUP and self.remaining_ships:
+        if preview and self.state == Screen.SETUP and self.ost_kor:
             mx, my = pygame.mouse.get_pos()
             if ox <= mx < ox + BOARD_SIZE and oy <= my < oy + BOARD_SIZE:
                 gx = (mx - ox) // CELL_SIZE
                 gy = (my - oy) // CELL_SIZE
-                size = self.remaining_ships[self.selected_ship_index]
-                cells = [(gx + i, gy) if self.ship_direction == Direction.HORIZONTAL else (gx, gy + i) for i in range(size)]
+                size = self.ost_kor[self.vib_kor]
+                cells = [(gx + i, gy) if self.napr == Dir.HORIZONTAL else (gx, gy + i) for i in range(size)]
                 valid = all(0 <= x < GRID_SIZE and 0 <= y < GRID_SIZE for x, y in cells) and board.can_place(cells)
                 color = GREEN if valid else RED
                 for x, y in cells:
@@ -299,26 +299,26 @@ class GameUI:
                         pygame.draw.rect(self.screen, color, rect, 3)
 
     def draw_ship(self, ship: Ship, ox: int, oy: int) -> None:
-        direction = Direction.HORIZONTAL
+        direction = Dir.HORIZONTAL
         if len(ship.positions) > 1 and ship.positions[0][0] == ship.positions[1][0]:
-            direction = Direction.VERTICAL
+            direction = Dir.VERTICAL
         surf = self.assets.ship_surface(ship.size, direction)
         x0, y0 = ship.positions[0]
         self.screen.blit(surf, (ox + x0 * CELL_SIZE + 1, oy + y0 * CELL_SIZE + 1))
 
-    def draw_pass_overlay(self) -> None:
+    def draw_per(self) -> None:
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         overlay.fill(OVERLAY)
         self.screen.blit(overlay, (0, 0))
         panel = pygame.Rect(WINDOW_WIDTH // 2 - 250, WINDOW_HEIGHT // 2 - 90, 500, 180)
         self.assets.draw_panel(self.screen, panel)
-        text = self.font_h2.render(self.pass_message, True, TEXT_TITLE)
+        text = self.font_h2.render(self.per_mes, True, TEXT_TITLE)
         hint = self.font_text.render("Нажмите любую клавишу", True, TEXT_MAIN)
         self.screen.blit(text, (panel.centerx - text.get_width() // 2, panel.y + 42))
         self.screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.y + 94))
 
 
-    def draw_pause_overlay(self) -> None:
+    def draw_pause(self) -> None:
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         overlay.fill(OVERLAY)
         self.screen.blit(overlay, (0, 0))
@@ -335,7 +335,7 @@ class GameUI:
             active = False
             self.assets.draw_button(self.screen, btn.rect, btn.style, btn.text, self.font_btn, active=active)
 
-    def draw_game_over(self) -> None:
+    def draw_over(self) -> None:
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         overlay.fill(OVERLAY)
         self.screen.blit(overlay, (0, 0))
@@ -343,9 +343,9 @@ class GameUI:
         self.assets.draw_panel(self.screen, panel)
 
         if self.mode == "pve":
-            message = "Вы победили!" if self.winner == 1 else "Компьютер победил!"
+            message = "Вы победили!" if self.win == 1 else "Компьютер победил!"
         else:
-            message = f"Победил игрок {self.winner}!"
+            message = f"Победил игрок {self.win}!"
 
         title = self.font_title.render(message, True, YELLOW)
         hint = self.font_text.render("ESC — вернуться в меню", True, TEXT_MAIN)

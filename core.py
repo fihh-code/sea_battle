@@ -39,21 +39,18 @@ SEA_A = (20, 79, 145)
 SEA_B = (28, 106, 182)
 OVERLAY = (0, 0, 0, 160)
 
-
-class Direction(Enum):
+class Dir(Enum):
     HORIZONTAL = auto()
     VERTICAL = auto()
 
-
-class CellState(Enum):
+class Cell(Enum):
     EMPTY = auto()
     SHIP = auto()
     HIT = auto()
     MISS = auto()
     DESTROYED = auto()
 
-
-class ScreenState(Enum):
+class Screen(Enum):
     MENU = auto()
     SETUP = auto()
     BATTLE = auto()
@@ -61,26 +58,25 @@ class ScreenState(Enum):
     PAUSE = auto()
     GAME_OVER = auto()
 
-
 @dataclass
 class Ship:
     size: int
     positions: List[Tuple[int, int]]
-    hits: List[bool] = field(default_factory=list)
+    popad: List[bool] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        if not self.hits:
-            self.hits = [False] * self.size
+        if not self.popad:
+            self.popad = [False] * self.size
 
     def hit(self, pos: Tuple[int, int]) -> None:
         for i, p in enumerate(self.positions):
             if p == pos:
-                self.hits[i] = True
+                self.popad[i] = True
                 return
 
     @property
-    def destroyed(self) -> bool:
-        return all(self.hits)
+    def dead(self) -> bool:
+        return all(self.popad)
 
 
 class Board:
@@ -88,7 +84,7 @@ class Board:
         self.clear()
 
     def clear(self) -> None:
-        self.grid = [[CellState.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        self.grid = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.shots = [[False for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.ships: List[Ship] = []
 
@@ -109,33 +105,33 @@ class Board:
         for x, y in positions:
             if not self.in_bounds(x, y):
                 return False
-            if self.grid[y][x] != CellState.EMPTY:
+            if self.grid[y][x] != Cell.EMPTY:
                 return False
             for nx, ny in self.around(x, y):
-                if self.grid[ny][nx] == CellState.SHIP:
+                if self.grid[ny][nx] == Cell.SHIP:
                     return False
         return True
 
-    def place_ship(self, size: int, x: int, y: int, direction: Direction) -> bool:
+    def place_ship(self, size: int, x: int, y: int, direction: Dir) -> bool:
         positions = []
         for i in range(size):
-            positions.append((x + i, y) if direction == Direction.HORIZONTAL else (x, y + i))
+            positions.append((x + i, y) if direction == Dir.HORIZONTAL else (x, y + i))
         if not self.can_place(positions):
             return False
         ship = Ship(size, positions)
         self.ships.append(ship)
         for sx, sy in positions:
-            self.grid[sy][sx] = CellState.SHIP
+            self.grid[sy][sx] = Cell.SHIP
         return True
 
-    def place_random_fleet(self) -> bool:
+    def rand_fleet(self) -> bool:
         self.clear()
         for size in SHIP_SIZES:
             placed = False
             for _ in range(3000):
                 x = random.randint(0, GRID_SIZE - 1)
                 y = random.randint(0, GRID_SIZE - 1)
-                direction = random.choice([Direction.HORIZONTAL, Direction.VERTICAL])
+                direction = random.choice([Dir.HORIZONTAL, Dir.VERTICAL])
                 if self.place_ship(size, x, y, direction):
                     placed = True
                     break
@@ -149,101 +145,101 @@ class Board:
                 return ship
         return None
 
-    def receive_shot(self, x: int, y: int) -> Tuple[bool, bool]:
+    def shot(self, x: int, y: int) -> Tuple[bool, bool]:
         if self.shots[y][x]:
             return False, False
 
         self.shots[y][x] = True
-        if self.grid[y][x] != CellState.SHIP:
-            self.grid[y][x] = CellState.MISS
+        if self.grid[y][x] != Cell.SHIP:
+            self.grid[y][x] = Cell.MISS
             return False, False
 
         ship = self.ship_at(x, y)
         if ship is None:
-            self.grid[y][x] = CellState.HIT
+            self.grid[y][x] = Cell.HIT
             return True, False
 
         ship.hit((x, y))
-        if ship.destroyed:
+        if ship.dead:
             for sx, sy in ship.positions:
-                self.grid[sy][sx] = CellState.DESTROYED
+                self.grid[sy][sx] = Cell.DESTROYED
             self.mark_around_sunk(ship)
             return True, True
 
-        self.grid[y][x] = CellState.HIT
+        self.grid[y][x] = Cell.HIT
         return True, False
 
     def mark_around_sunk(self, ship: Ship) -> None:
         for x, y in ship.positions:
             for nx, ny in self.around(x, y):
-                if self.grid[ny][nx] == CellState.EMPTY and not self.shots[ny][nx]:
+                if self.grid[ny][nx] == Cell.EMPTY and not self.shots[ny][nx]:
                     self.shots[ny][nx] = True
-                    self.grid[ny][nx] = CellState.MISS
+                    self.grid[ny][nx] = Cell.MISS
 
-    def all_destroyed(self) -> bool:
-        return all(ship.destroyed for ship in self.ships)
+    def all_dead(self) -> bool:
+        return all(ship.dead for ship in self.ships)
 
     def available_shots(self) -> List[Tuple[int, int]]:
         return [(x, y) for y in range(GRID_SIZE) for x in range(GRID_SIZE) if not self.shots[y][x]]
 
 
-class AIPlayer:
-    def __init__(self, difficulty: str = "medium") -> None:
-        self.difficulty = difficulty
+class AI:
+    def __init__(self, uroven: str = "medium") -> None:
+        self.uroven = uroven
         self.queue: List[Tuple[int, int]] = []
-        self.hit_memory: List[Tuple[int, int]] = []
+        self.popad: List[Tuple[int, int]] = []
 
     def reset(self) -> None:
         self.queue.clear()
-        self.hit_memory.clear()
+        self.popad.clear()
 
     def choose_shot(self, board: Board) -> Tuple[int, int]:
-        available = set(board.available_shots())
+        svob_klet = set(board.available_shots())
         while self.queue:
             target = self.queue.pop(0)
-            if target in available:
+            if target in svob_klet:
                 return target
-        if not available:
+        if not svob_klet:
             return -1, -1
 
-        if self.difficulty == "easy":
-            return random.choice(list(available))
+        if self.uroven == "easy":
+            return random.choice(list(svob_klet))
 
-        if self.difficulty == "medium":
-            return random.choice(list(available))
+        if self.uroven == "medium":
+            return random.choice(list(svob_klet))
 
-        parity = [p for p in available if (p[0] + p[1]) % 2 == 0]
-        return random.choice(parity or list(available))
+        parity = [p for p in svob_klet if (p[0] + p[1]) % 2 == 0]
+        return random.choice(parity or list(svob_klet))
 
-    def process_result(self, pos: Tuple[int, int], hit: bool, destroyed: bool, board: Board) -> None:
-        if self.difficulty == "easy":
+    def proc_res(self, pos: Tuple[int, int], hit: bool, dead: bool, board: Board) -> None:
+        if self.uroven == "easy":
             return
 
-        if destroyed:
+        if dead:
             self.queue.clear()
-            self.hit_memory.clear()
+            self.popad.clear()
             return
 
         if not hit:
             return
 
-        self.hit_memory.append(pos)
+        self.popad.append(pos)
         x, y = pos
 
-        candidates: List[Tuple[int, int]] = []
-        if self.difficulty == "hard" and len(self.hit_memory) >= 2:
-            xs = {hx for hx, _ in self.hit_memory}
-            ys = {hy for _, hy in self.hit_memory}
+        cands: List[Tuple[int, int]] = []
+        if self.uroven == "hard" and len(self.popad) >= 2:
+            xs = {hx for hx, _ in self.popad}
+            ys = {hy for _, hy in self.popad}
             if len(xs) == 1:
-                candidates = [(x, y - 1), (x, y + 1)]
+                cands = [(x, y - 1), (x, y + 1)]
             elif len(ys) == 1:
-                candidates = [(x - 1, y), (x + 1, y)]
+                cands = [(x - 1, y), (x + 1, y)]
 
-        if not candidates:
-            candidates = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        if not cands:
+            cands = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
 
         seen = set(self.queue)
-        for nx, ny in candidates:
+        for nx, ny in cands:
             if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and not board.shots[ny][nx]:
                 if (nx, ny) not in seen:
                     self.queue.append((nx, ny))
@@ -387,7 +383,6 @@ class Assets:
         title_color,
         shadow_color,
     ) -> pygame.Rect:
-        # external steel frame
         self._draw_symmetric_panel(
             dst, rect,
             fill_top=(34, 42, 58),
@@ -454,8 +449,8 @@ class Assets:
         dst.blit(shadow, (tx, ty + 1))
         dst.blit(surf, (tx, ty))
 
-    def ship_surface(self, size: int, direction: Direction) -> pygame.Surface:
-        if direction == Direction.HORIZONTAL:
+    def ship_surface(self, size: int, direction: Dir) -> pygame.Surface:
+        if direction == Dir.HORIZONTAL:
             return self.scaled(
                 f"ship_h_{size}",
                 self.ship_h[size],
@@ -470,5 +465,3 @@ class Assets:
     def effect_surface(self, kind: str) -> pygame.Surface:
         surf = self.hit if kind == "hit" else self.miss
         return self.scaled(kind, surf, (CELL_SIZE, CELL_SIZE))
-
-
