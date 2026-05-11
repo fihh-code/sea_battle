@@ -27,10 +27,12 @@ SEA_A = (20, 79, 145)
 SEA_B = (28, 106, 182)
 OVERLAY = (0, 0, 0, 160)
 
+# Перечисление направлений корабля
 class Dir(Enum):
     HORIZONTAL = auto()
     VERTICAL = auto()
 
+# Перечисление состояний клетки
 class Cell(Enum):
     EMPTY = auto()
     SHIP = auto()
@@ -38,6 +40,7 @@ class Cell(Enum):
     MISS = auto()
     DESTROYED = auto()
 
+# Перечисление экранов игры
 class Screen(Enum):
     MENU = auto()
     SETUP = auto()
@@ -46,6 +49,7 @@ class Screen(Enum):
     PAUSE = auto()
     GAME_OVER = auto()
 
+# Класс корабля
 class Ship:
 
     def __init__(self, size, positions, popad=None):
@@ -59,6 +63,7 @@ class Ship:
                 self.popad[i] = True
                 return
 
+    # Проверка уничтожения корабля
     @property
     def dead(self):
         return all(self.popad)
@@ -71,10 +76,13 @@ class Board:
 
     # Очистка игрового поля перед новой игрой
     def clear(self):
+        # Матрица состояний клеток
         self.grid = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        # Матрица выполненных выстрелов
         self.shots = [[False for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.ships = []
 
+    # Проверка координат без обращения к self
     @staticmethod
     def in_bounds(x, y):
         return 0 <= x < GRID_SIZE and 0 <= y < GRID_SIZE
@@ -88,7 +96,7 @@ class Board:
                     out.append((nx, ny))
         return out
 
-    # Проверка возможности установки корабля
+    # Проверка возможности устаановки корабля
     def can_place(self, positions):
         for x, y in positions:
             if not self.in_bounds(x, y):
@@ -112,7 +120,7 @@ class Board:
             self.grid[sy][sx] = Cell.SHIP
         return True
 
-    # Случайная расстановка корабллй
+    # Случайная расстановка кораблей
     def rand_fleet(self):
         self.clear()
         for size in SHIP_SIZES:
@@ -155,6 +163,7 @@ class Board:
         self.grid[y][x] = Cell.HIT
         return (True, False)
 
+    # Отметка области вокруг уничтоженного корабля
     def mark_around_sunk(self, ship):
         for x, y in ship.positions:
             for nx, ny in self.around(x, y):
@@ -174,14 +183,16 @@ class AI:
 
     def __init__(self, uroven='medium'):
         self.uroven = uroven
+        # Очередь клеток для добивания
         self.queue = []
+        # Список попаданий
         self.popad = []
 
     def reset(self):
         self.queue.clear()
         self.popad.clear()
 
-    # Выбор клетки для выстрела компьютера
+    # Выбор клетки для выстрела компьютером
     def choose_shot(self, board):
         svob_klet = set(board.available_shots())
         while self.queue:
@@ -197,6 +208,7 @@ class AI:
         parity = [p for p in svob_klet if (p[0] + p[1]) % 2 == 0]
         return random.choice(parity or list(svob_klet))
 
+    # Обработка результата выстрела ИИ
     def proc_res(self, pos, hit, dead, board):
         if self.uroven == 'easy':
             return
@@ -233,11 +245,13 @@ class Button:
         self.text = text
         self.style = style
 
+# Загрузка графики
 class Assets:
 
     def __init__(self):
         base = os.path.join(os.path.dirname(__file__), 'assets')
         self.base = base
+        # Кеш масштабированных изображений
         self.cache = {}
         self.raw = {}
         self.background = self.load('background_tile.png')
@@ -257,6 +271,7 @@ class Assets:
         img = pygame.image.load(path)
         return img.convert_alpha() if alpha else img.convert()
 
+    # Получение изображения через кеш
     def scaled(self, name, surf, size):
         key = (name, size)
         if key not in self.cache:

@@ -7,6 +7,7 @@ class GameUI:
     def __init__(self, game):
         self.game = game
 
+    # Доступ к атрибутам Game
     def __getattr__(self, name):
         return getattr(self.game, name)
 
@@ -29,6 +30,7 @@ class GameUI:
             self.draw_battle()
             self.draw_over()
 
+    # Фон экрана передачи хода
     def draw_under_per(self):
         if self.next_st == Screen.SETUP:
             self.draw_setup()
@@ -37,6 +39,7 @@ class GameUI:
         else:
             self.draw_menu()
 
+    # Фон меню паузы
     def draw_under_pause(self):
         if self.prev_st == Screen.SETUP:
             self.draw_setup()
@@ -132,6 +135,7 @@ class GameUI:
         self.draw_icons(l_cont, l_live, 'reserve_left')
         self.draw_icons(r_cont, r_live, 'reserve_right')
 
+    # Отрисовка оставшегося флота
     def draw_icons(self, content_rect, live_ships, cache_pref):
         x = content_rect.x + 8
         y = content_rect.y + 8
@@ -148,6 +152,7 @@ class GameUI:
             self.screen.blit(icon, (x, y))
             x += icon.get_width() + 14
 
+    # Центрирование заголовка
     def draw_head(self, title_txt, show_hour):
         text = self.font_h2.render(title_txt, True, TEXT_TITLE)
         shadow = self.font_h2.render(title_txt, True, TEXT_SHADOW)
@@ -181,6 +186,7 @@ class GameUI:
         ox, oy = origin
         b_rect = pygame.Rect(ox - 4, oy - 4, BOARD_SIZE + 8, BOARD_SIZE + 8)
         self.assets.draw_panel(self.screen, b_rect)
+        # Использование кешированной текстуры воды
         water_tile = self.assets.scaled('water_cell', self.assets.water, (CELL_SIZE, CELL_SIZE))
         for y in range(GRID_SIZE):
             for x in range(GRID_SIZE):
@@ -206,6 +212,7 @@ class GameUI:
                         shade.fill((0, 0, 0, 70))
                         self.screen.blit(shade, rect)
                 pygame.draw.rect(self.screen, GRID_BLUE, rect, 1)
+        # Предпросмотр размещения корабля
         if preview and self.state == Screen.SETUP and self.ost_kor:
             mx, my = pygame.mouse.get_pos()
             if ox <= mx < ox + BOARD_SIZE and oy <= my < oy + BOARD_SIZE:
@@ -220,6 +227,7 @@ class GameUI:
                         rect = pygame.Rect(ox + x * CELL_SIZE, oy + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                         pygame.draw.rect(self.screen, color, rect, 3)
 
+    # Отрисовка корабля
     def draw_ship(self, ship, ox, oy):
         direction = Dir.HORIZONTAL
         if len(ship.positions) > 1 and ship.positions[0][0] == ship.positions[1][0]:

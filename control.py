@@ -10,6 +10,7 @@ class Game:
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.clock = pygame.time.Clock()
 
+        # Выбор системного шрифта
         def choose_font(cands, size, bold=False):
             for name in cands:
                 path = pygame.font.match_font(name, bold=bold)
@@ -22,6 +23,7 @@ class Game:
         self.font_text = choose_font(['trebuchetms', 'tahoma', 'arial', 'dejavusans'], 21, bold=True)
         self.font_small = choose_font(['trebuchetms', 'tahoma', 'arial', 'dejavusans'], 18, bold=True)
         self.assets = Assets()
+        # Связь интерфейса с объектом Game
         self.ui = GameUI(self)
         self.left_board_pos = (LEFT_MARGIN, TOP_MARGIN)
         self.right_board_pos = (LEFT_MARGIN + BOARD_SIZE + BOARD_GAP, TOP_MARGIN)
@@ -30,6 +32,7 @@ class Game:
         self.ai = None
         self.mode = None
         self.uroven = 'medium'
+        # экраны игры
         self.state = Screen.MENU
         self.next_st = Screen.MENU
         self.prev_st = Screen.MENU
@@ -67,6 +70,7 @@ class Game:
         self.board_p1.clear()
         self.board_p2.clear()
         self.set_player = 1
+        # Отдельная копия списка кораблей
         self.ost_kor = SHIP_SIZES.copy()
         self.vib_kor = 0
         self.napr = Dir.HORIZONTAL
@@ -87,6 +91,7 @@ class Game:
     def pole_vraga(self, player):
         return self.board_p2 if player == 1 else self.board_p1
 
+    # Подготовка экрана передачи хода
     def show_per(self, text, next_st):
         self.per_mes = text
         self.next_st = next_st
@@ -106,6 +111,7 @@ class Game:
         cx = WINDOW_WIDTH // 2
         return [Button('resume', pygame.Rect(cx - 130, 330, 260, 56), 'Продолжить', 'green'), Button('menu', pygame.Rect(cx - 130, 402, 260, 56), 'В главное меню', 'orange')]
 
+    # Расчёт позиций кораблей резерва
     def get_sel_pos(self, remain_panel):
         positions = []
         ix = remain_panel.x + 6
@@ -136,6 +142,7 @@ class Game:
             self.ui.draw()
             pygame.display.flip()
 
+    # Обработка клавиш
     def key_down(self, key):
         if self.state == Screen.PASS:
             self.state = self.next_st
@@ -157,6 +164,7 @@ class Game:
             self.to_menu()
             return
         if self.state == Screen.SETUP and key == pygame.K_r:
+            # Смена направления корабля
             self.napr = Dir.VERTICAL if self.napr == Dir.HORIZONTAL else Dir.HORIZONTAL
 
     # Обработка нажатий мышки
@@ -189,6 +197,7 @@ class Game:
             else:
                 self.uroven = btn.key
 
+    # Логика расстановки кораблей
     def setup_click(self, pos):
         board = self.tek_pole()
         for btn in self.setup_buttons():
@@ -280,7 +289,9 @@ class Game:
     def update(self):
         if self.mode != 'pve' or self.state != Screen.BATTLE or self.ochered != 2 or (self.ai is None):
             return
+        # Текущее время Pygame
         now = pygame.time.get_ticks()
+        # Задержка перед ходом ИИ
         if now - self.ai_vrem < self.ai_delay:
             return
         x, y = self.ai.choose_shot(self.board_p1)
@@ -294,6 +305,7 @@ class Game:
             self.win = 2
             self.state = Screen.GAME_OVER
             return
+        # При промахе ход передаётся другому игроку
         if not hit:
             self.ochered = 1
         self.ai_vrem = now
