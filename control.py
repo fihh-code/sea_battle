@@ -3,6 +3,7 @@ import pygame
 from core import AI, Assets, BOARD_GAP, BOARD_SIZE, Button, CELL_SIZE, Dir, FPS, LEFT_MARGIN, SHIP_SIZES, Screen, TOP_MARGIN, WINDOW_HEIGHT, WINDOW_WIDTH, Board
 from ui import GameUI
 
+# Главный класс управления игрой
 class Game:
 
     def __init__(self):
@@ -60,6 +61,7 @@ class Game:
         self.err = ''
         self.win = None
 
+    # Запуск новой игры
     def start_game(self, mode):
         self.mode = mode
         self.board_p1.clear()
@@ -118,6 +120,7 @@ class Game:
             ix += icon.get_width() + 10
         return positions
 
+    # Главный игровой цикл программы
     def run(self):
         while True:
             self.clock.tick(FPS)
@@ -156,6 +159,7 @@ class Game:
         if self.state == Screen.SETUP and key == pygame.K_r:
             self.napr = Dir.VERTICAL if self.napr == Dir.HORIZONTAL else Dir.HORIZONTAL
 
+    # Обработка нажатий мышки
     def click(self, pos):
         if self.state == Screen.MENU:
             self.menu_click(pos)
@@ -247,6 +251,7 @@ class Game:
         else:
             self.err = 'Нельзя поставить корабль здесь.'
 
+    # Обработка выстрела игрока
     def battle_click(self, pos):
         if self.mode == 'pve' and self.ochered != 1:
             return
@@ -271,6 +276,7 @@ class Game:
             self.ochered = 2
             self.ai_vrem = pygame.time.get_ticks()
 
+    # Обновление состояния игры и хода компьютера
     def update(self):
         if self.mode != 'pve' or self.state != Screen.BATTLE or self.ochered != 2 or (self.ai is None):
             return

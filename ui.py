@@ -1,6 +1,7 @@
 import pygame
 from core import BOARD_SIZE, CELL_SIZE, GREEN, GRID_BLUE, GRID_SIZE, LEFT_MARGIN, OVERLAY, RED, Screen, TOP_MARGIN, WHITE, TEXT_TITLE, TEXT_MAIN, TEXT_SUBTLE, TEXT_SHADOW, WINDOW_HEIGHT, WINDOW_WIDTH, YELLOW, Dir, Board, Ship, Cell
 
+# Класс интерфейса и отрисовки
 class GameUI:
 
     def __init__(self, game):
@@ -9,6 +10,7 @@ class GameUI:
     def __getattr__(self, name):
         return getattr(self.game, name)
 
+    # Основной метод отрисовки экранов
     def draw(self):
         self.assets.tile(self.screen, self.assets.background, self.screen.get_rect())
         if self.state == Screen.MENU:
@@ -43,6 +45,7 @@ class GameUI:
         else:
             self.draw_menu()
 
+    # Отрисовка главного меню
     def draw_menu(self):
         title = self.font_title.render('МОРСКОЙ БOЙ', True, TEXT_TITLE)
         help1 = self.font_small.render('ESC — в меню. В расстановке R поворачивает корабль.', True, TEXT_SUBTLE)
@@ -56,6 +59,7 @@ class GameUI:
             active = btn.key == self.uroven
             self.assets.draw_button(self.screen, btn.rect, btn.style, btn.text, self.font_btn, active=active)
 
+    # Отрисовка экрана расстановки
     def draw_setup(self):
         title_txt = f'РАССТАНОВКА ФЛОТА — ИГРОК {self.set_player}' if self.mode == 'pvp' else 'РАССТАНОВКА КОРАБЛЕЙ'
         title = self.font_h2.render(title_txt, True, TEXT_TITLE)
@@ -94,6 +98,7 @@ class GameUI:
             active = btn.key == 'start' and (not self.ost_kor)
             self.assets.draw_button(self.screen, btn.rect, btn.style, btn.text, self.font_btn, active=active)
 
+    # Отрисовка экрана боя
     def draw_battle(self):
         if self.mode == 'pve':
             title_txt = 'ВАШ ХОД' if self.ochered == 1 else 'ХОД КОМПЬЮТЕРА'
@@ -173,6 +178,7 @@ class GameUI:
         pygame.draw.line(self.screen, c2, (x + 13, y + 13), (x + 8, y + 7), 1)
         pygame.draw.line(self.screen, c3, (x + 8, y + 2), (x + 8, y + 12), 1)
 
+    # Отрисовка игрового поля
     def draw_board(self, board, origin, show_ship, hide_live, preview):
         ox, oy = origin
         b_rect = pygame.Rect(ox - 4, oy - 4, BOARD_SIZE + 8, BOARD_SIZE + 8)
@@ -235,6 +241,7 @@ class GameUI:
         self.screen.blit(text, (panel.centerx - text.get_width() // 2, panel.y + 42))
         self.screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.y + 94))
 
+    # Отрисовка меню паузы
     def draw_pause(self):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         overlay.fill(OVERLAY)
@@ -249,6 +256,7 @@ class GameUI:
             active = False
             self.assets.draw_button(self.screen, btn.rect, btn.style, btn.text, self.font_btn, active=active)
 
+    # Отрисовка экрана победы
     def draw_over(self):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         overlay.fill(OVERLAY)

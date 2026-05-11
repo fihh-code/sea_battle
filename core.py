@@ -63,11 +63,13 @@ class Ship:
     def dead(self):
         return all(self.popad)
 
+# Класс игрового поля и основной логики морского боя
 class Board:
 
     def __init__(self):
         self.clear()
 
+    # Очистка игрового поля перед новой игрой
     def clear(self):
         self.grid = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.shots = [[False for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
@@ -86,6 +88,7 @@ class Board:
                     out.append((nx, ny))
         return out
 
+    # Проверка возможности установки корабля
     def can_place(self, positions):
         for x, y in positions:
             if not self.in_bounds(x, y):
@@ -109,6 +112,7 @@ class Board:
             self.grid[sy][sx] = Cell.SHIP
         return True
 
+    # Случайная расстановка корабллй
     def rand_fleet(self):
         self.clear()
         for size in SHIP_SIZES:
@@ -130,6 +134,7 @@ class Board:
                 return ship
         return None
 
+    # Обработка выстрела по клетке
     def shot(self, x, y):
         if self.shots[y][x]:
             return (False, False)
@@ -157,12 +162,14 @@ class Board:
                     self.shots[ny][nx] = True
                     self.grid[ny][nx] = Cell.MISS
 
+    # Проверка уничтожения всех кораблей
     def all_dead(self):
         return all((ship.dead for ship in self.ships))
 
     def available_shots(self):
         return [(x, y) for y in range(GRID_SIZE) for x in range(GRID_SIZE) if not self.shots[y][x]]
 
+# Класс противника-компьютера
 class AI:
 
     def __init__(self, uroven='medium'):
@@ -174,6 +181,7 @@ class AI:
         self.queue.clear()
         self.popad.clear()
 
+    # Выбор клетки для выстрела компьютера
     def choose_shot(self, board):
         svob_klet = set(board.available_shots())
         while self.queue:
