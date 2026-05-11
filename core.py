@@ -1,30 +1,18 @@
-
 import os
 import random
-from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple
-
 import pygame
-
 pygame.init()
-
-# ----------------------------
-# Конфигурация
-# ----------------------------
 CELL_SIZE = 40
 GRID_SIZE = 10
 BOARD_SIZE = CELL_SIZE * GRID_SIZE
-
 LEFT_MARGIN = 36
 TOP_MARGIN = 96
 BOARD_GAP = 56
 WINDOW_WIDTH = LEFT_MARGIN * 2 + BOARD_SIZE * 2 + BOARD_GAP
 WINDOW_HEIGHT = 760
 FPS = 60
-
 SHIP_SIZES = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
-
 WHITE = (240, 245, 250)
 TEXT_TITLE = (226, 230, 236)
 TEXT_MAIN = (210, 218, 228)
@@ -58,50 +46,47 @@ class Screen(Enum):
     PAUSE = auto()
     GAME_OVER = auto()
 
-@dataclass
 class Ship:
-    size: int
-    positions: List[Tuple[int, int]]
-    popad: List[bool] = field(default_factory=list)
 
-    def __post_init__(self) -> None:
-        if not self.popad:
-            self.popad = [False] * self.size
+    def __init__(self, size, positions, popad=None):
+        self.size = size
+        self.positions = positions
+        self.popad = popad if popad is not None else [False] * size
 
-    def hit(self, pos: Tuple[int, int]) -> None:
+    def hit(self, pos):
         for i, p in enumerate(self.positions):
             if p == pos:
                 self.popad[i] = True
                 return
 
     @property
-    def dead(self) -> bool:
+    def dead(self):
         return all(self.popad)
 
-
 class Board:
-    def __init__(self) -> None:
+
+    def __init__(self):
         self.clear()
 
-    def clear(self) -> None:
+    def clear(self):
         self.grid = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.shots = [[False for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-        self.ships: List[Ship] = []
+        self.ships = []
 
     @staticmethod
-    def in_bounds(x: int, y: int) -> bool:
+    def in_bounds(x, y):
         return 0 <= x < GRID_SIZE and 0 <= y < GRID_SIZE
 
-    def around(self, x: int, y: int) -> List[Tuple[int, int]]:
+    def around(self, x, y):
         out = []
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
-                nx, ny = x + dx, y + dy
+                nx, ny = (x + dx, y + dy)
                 if self.in_bounds(nx, ny):
                     out.append((nx, ny))
         return out
 
-    def can_place(self, positions: List[Tuple[int, int]]) -> bool:
+    def can_place(self, positions):
         for x, y in positions:
             if not self.in_bounds(x, y):
                 return False
@@ -112,7 +97,7 @@ class Board:
                     return False
         return True
 
-    def place_ship(self, size: int, x: int, y: int, direction: Dir) -> bool:
+    def place_ship(self, size, x, y, direction):
         positions = []
         for i in range(size):
             positions.append((x + i, y) if direction == Dir.HORIZONTAL else (x, y + i))
@@ -124,7 +109,7 @@ class Board:
             self.grid[sy][sx] = Cell.SHIP
         return True
 
-    def rand_fleet(self) -> bool:
+    def rand_fleet(self):
         self.clear()
         for size in SHIP_SIZES:
             placed = False
@@ -139,197 +124,158 @@ class Board:
                 return False
         return True
 
-    def ship_at(self, x: int, y: int) -> Optional[Ship]:
+    def ship_at(self, x, y):
         for ship in self.ships:
             if (x, y) in ship.positions:
                 return ship
         return None
 
-    def shot(self, x: int, y: int) -> Tuple[bool, bool]:
+    def shot(self, x, y):
         if self.shots[y][x]:
-            return False, False
-
+            return (False, False)
         self.shots[y][x] = True
         if self.grid[y][x] != Cell.SHIP:
             self.grid[y][x] = Cell.MISS
-            return False, False
-
+            return (False, False)
         ship = self.ship_at(x, y)
         if ship is None:
             self.grid[y][x] = Cell.HIT
-            return True, False
-
+            return (True, False)
         ship.hit((x, y))
         if ship.dead:
             for sx, sy in ship.positions:
                 self.grid[sy][sx] = Cell.DESTROYED
             self.mark_around_sunk(ship)
-            return True, True
-
+            return (True, True)
         self.grid[y][x] = Cell.HIT
-        return True, False
+        return (True, False)
 
-    def mark_around_sunk(self, ship: Ship) -> None:
+    def mark_around_sunk(self, ship):
         for x, y in ship.positions:
             for nx, ny in self.around(x, y):
-                if self.grid[ny][nx] == Cell.EMPTY and not self.shots[ny][nx]:
+                if self.grid[ny][nx] == Cell.EMPTY and (not self.shots[ny][nx]):
                     self.shots[ny][nx] = True
                     self.grid[ny][nx] = Cell.MISS
 
-    def all_dead(self) -> bool:
-        return all(ship.dead for ship in self.ships)
+    def all_dead(self):
+        return all((ship.dead for ship in self.ships))
 
-    def available_shots(self) -> List[Tuple[int, int]]:
+    def available_shots(self):
         return [(x, y) for y in range(GRID_SIZE) for x in range(GRID_SIZE) if not self.shots[y][x]]
 
-
 class AI:
-    def __init__(self, uroven: str = "medium") -> None:
-        self.uroven = uroven
-        self.queue: List[Tuple[int, int]] = []
-        self.popad: List[Tuple[int, int]] = []
 
-    def reset(self) -> None:
+    def __init__(self, uroven='medium'):
+        self.uroven = uroven
+        self.queue = []
+        self.popad = []
+
+    def reset(self):
         self.queue.clear()
         self.popad.clear()
 
-    def choose_shot(self, board: Board) -> Tuple[int, int]:
+    def choose_shot(self, board):
         svob_klet = set(board.available_shots())
         while self.queue:
             target = self.queue.pop(0)
             if target in svob_klet:
                 return target
         if not svob_klet:
-            return -1, -1
-
-        if self.uroven == "easy":
+            return (-1, -1)
+        if self.uroven == 'easy':
             return random.choice(list(svob_klet))
-
-        if self.uroven == "medium":
+        if self.uroven == 'medium':
             return random.choice(list(svob_klet))
-
         parity = [p for p in svob_klet if (p[0] + p[1]) % 2 == 0]
         return random.choice(parity or list(svob_klet))
 
-    def proc_res(self, pos: Tuple[int, int], hit: bool, dead: bool, board: Board) -> None:
-        if self.uroven == "easy":
+    def proc_res(self, pos, hit, dead, board):
+        if self.uroven == 'easy':
             return
-
         if dead:
             self.queue.clear()
             self.popad.clear()
             return
-
         if not hit:
             return
-
         self.popad.append(pos)
         x, y = pos
-
-        cands: List[Tuple[int, int]] = []
-        if self.uroven == "hard" and len(self.popad) >= 2:
+        cands = []
+        if self.uroven == 'hard' and len(self.popad) >= 2:
             xs = {hx for hx, _ in self.popad}
             ys = {hy for _, hy in self.popad}
             if len(xs) == 1:
                 cands = [(x, y - 1), (x, y + 1)]
             elif len(ys) == 1:
                 cands = [(x - 1, y), (x + 1, y)]
-
         if not cands:
             cands = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-
         seen = set(self.queue)
         for nx, ny in cands:
-            if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and not board.shots[ny][nx]:
+            if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (not board.shots[ny][nx]):
                 if (nx, ny) not in seen:
                     self.queue.append((nx, ny))
                     seen.add((nx, ny))
 
-
-@dataclass
 class Button:
-    key: str
-    rect: pygame.Rect
-    text: str
-    style: str
 
+    def __init__(self, key, rect, text, style):
+        self.key = key
+        self.rect = rect
+        self.text = text
+        self.style = style
 
 class Assets:
-    def __init__(self) -> None:
-        base = os.path.join(os.path.dirname(__file__), "assets")
+
+    def __init__(self):
+        base = os.path.join(os.path.dirname(__file__), 'assets')
         self.base = base
-        self.cache: Dict[Tuple[str, Tuple[int, int]], pygame.Surface] = {}
-        self.raw: Dict[str, pygame.Surface] = {}
+        self.cache = {}
+        self.raw = {}
+        self.background = self.load('background_tile.png')
+        self.water = self.load('water_tile.png')
+        self.panel = self.load('panel_tile.png')
+        self.parchment = self.load('parchment_panel.png')
+        self.metal_label = self.load('metal_label.png')
+        self.selector = self.load('selector.png')
+        self.hit = self.load('hit.png', alpha=True)
+        self.miss = self.load('miss.png', alpha=True)
+        self.buttons = {'green': self.load('button_green.png'), 'orange': self.load('button_orange.png'), 'purple': self.load('button_purple.png'), 'gray': self.load('button_gray.png'), 'red': self.load('button_red.png'), 'yellow': self.load('button_yellow.png')}
+        self.ship_h = {s: self.load(f'ship_{s}_h.png', alpha=True) for s in (1, 2, 3, 4)}
+        self.ship_v = {s: self.load(f'ship_{s}_v.png', alpha=True) for s in (1, 2, 3, 4)}
 
-        self.background = self.load("background_tile.png")
-        self.water = self.load("water_tile.png")
-        self.panel = self.load("panel_tile.png")
-        self.parchment = self.load("parchment_panel.png")
-        self.metal_label = self.load("metal_label.png")
-        self.selector = self.load("selector.png")
-        self.hit = self.load("hit.png", alpha=True)
-        self.miss = self.load("miss.png", alpha=True)
-
-        self.buttons = {
-            "green": self.load("button_green.png"),
-            "orange": self.load("button_orange.png"),
-            "purple": self.load("button_purple.png"),
-            "gray": self.load("button_gray.png"),
-            "red": self.load("button_red.png"),
-            "yellow": self.load("button_yellow.png"),
-        }
-
-        self.ship_h = {s: self.load(f"ship_{s}_h.png", alpha=True) for s in (1, 2, 3, 4)}
-        self.ship_v = {s: self.load(f"ship_{s}_v.png", alpha=True) for s in (1, 2, 3, 4)}
-
-    def load(self, filename: str, alpha: bool = False) -> pygame.Surface:
+    def load(self, filename, alpha=False):
         path = os.path.join(self.base, filename)
         img = pygame.image.load(path)
         return img.convert_alpha() if alpha else img.convert()
 
-    def scaled(self, name: str, surf: pygame.Surface, size: Tuple[int, int]) -> pygame.Surface:
+    def scaled(self, name, surf, size):
         key = (name, size)
         if key not in self.cache:
             self.cache[key] = pygame.transform.scale(surf, size)
         return self.cache[key]
 
-    def tile(self, dst: pygame.Surface, tile_surf: pygame.Surface, rect: pygame.Rect) -> None:
+    def tile(self, dst, tile_surf, rect):
         tw, th = tile_surf.get_size()
         for y in range(rect.top, rect.bottom, th):
             for x in range(rect.left, rect.right, tw):
                 dst.blit(tile_surf, (x, y))
 
-
-    def draw_scaled_panel(self, dst: pygame.Surface, rect: pygame.Rect, surf: pygame.Surface) -> None:
-        panel = self.scaled(f"panel_{id(surf)}_{rect.w}_{rect.h}", surf, (rect.w, rect.h))
+    def draw_scaled_panel(self, dst, rect, surf):
+        panel = self.scaled(f'panel_{id(surf)}_{rect.w}_{rect.h}', surf, (rect.w, rect.h))
         dst.blit(panel, rect)
 
-    def _draw_symmetric_panel(
-        self,
-        dst: pygame.Surface,
-        rect: pygame.Rect,
-        fill_top: tuple[int, int, int],
-        fill_bottom: tuple[int, int, int],
-        border_light: tuple[int, int, int],
-        border_dark: tuple[int, int, int],
-        accent: tuple[int, int, int],
-    ) -> None:
+    def _draw_symmetric_panel(self, dst, rect, fill_top, fill_bottom, border_light, border_dark, accent):
         panel = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
         for y in range(rect.h):
             t = y / max(1, rect.h - 1)
-            col = (
-                int(fill_top[0] * (1 - t) + fill_bottom[0] * t),
-                int(fill_top[1] * (1 - t) + fill_bottom[1] * t),
-                int(fill_top[2] * (1 - t) + fill_bottom[2] * t),
-            )
+            col = (int(fill_top[0] * (1 - t) + fill_bottom[0] * t), int(fill_top[1] * (1 - t) + fill_bottom[1] * t), int(fill_top[2] * (1 - t) + fill_bottom[2] * t))
             pygame.draw.line(panel, col, (0, y), (rect.w - 1, y))
-
         pygame.draw.rect(panel, border_dark, panel.get_rect(), 2)
         pygame.draw.line(panel, border_light, (2, 2), (rect.w - 3, 2), 1)
         pygame.draw.line(panel, border_light, (2, 2), (2, rect.h - 3), 1)
         pygame.draw.line(panel, border_dark, (2, rect.h - 3), (rect.w - 3, rect.h - 3), 1)
         pygame.draw.line(panel, border_dark, (rect.w - 3, 2), (rect.w - 3, rect.h - 3), 1)
-
         inner = pygame.Rect(8, 8, max(0, rect.w - 16), max(0, rect.h - 16))
         if inner.w > 0 and inner.h > 0:
             pygame.draw.rect(panel, accent, inner, 1)
@@ -340,83 +286,27 @@ class Assets:
             pygame.draw.rect(panel, border_light, pygame.Rect(rect.w - 14 - deco_w, deco_y, deco_w, deco_h))
             pygame.draw.rect(panel, border_light, pygame.Rect(14, rect.h - deco_y - deco_h, deco_w, deco_h))
             pygame.draw.rect(panel, border_light, pygame.Rect(rect.w - 14 - deco_w, rect.h - deco_y - deco_h, deco_w, deco_h))
-
         dst.blit(panel, rect.topleft)
 
-    def draw_panel(self, dst: pygame.Surface, rect: pygame.Rect) -> None:
-        self._draw_symmetric_panel(
-            dst, rect,
-            fill_top=(46, 54, 70),
-            fill_bottom=(28, 34, 46),
-            border_light=(118, 128, 148),
-            border_dark=(8, 12, 18),
-            accent=(84, 92, 108),
-        )
+    def draw_panel(self, dst, rect):
+        self._draw_symmetric_panel(dst, rect, fill_top=(46, 54, 70), fill_bottom=(28, 34, 46), border_light=(118, 128, 148), border_dark=(8, 12, 18), accent=(84, 92, 108))
 
-    def draw_parchment_panel(self, dst: pygame.Surface, rect: pygame.Rect) -> None:
-        self._draw_symmetric_panel(
-            dst, rect,
-            fill_top=(198, 178, 136),
-            fill_bottom=(166, 144, 102),
-            border_light=(230, 214, 180),
-            border_dark=(92, 70, 44),
-            accent=(150, 126, 88),
-        )
+    def draw_parchment_panel(self, dst, rect):
+        self._draw_symmetric_panel(dst, rect, fill_top=(198, 178, 136), fill_bottom=(166, 144, 102), border_light=(230, 214, 180), border_dark=(92, 70, 44), accent=(150, 126, 88))
 
-    def draw_label_panel(self, dst: pygame.Surface, rect: pygame.Rect) -> None:
-        self._draw_symmetric_panel(
-            dst, rect,
-            fill_top=(62, 70, 86),
-            fill_bottom=(42, 48, 60),
-            border_light=(132, 142, 160),
-            border_dark=(10, 14, 20),
-            accent=(92, 102, 118),
-        )
+    def draw_label_panel(self, dst, rect):
+        self._draw_symmetric_panel(dst, rect, fill_top=(62, 70, 86), fill_bottom=(42, 48, 60), border_light=(132, 142, 160), border_dark=(10, 14, 20), accent=(92, 102, 118))
 
-
-    def draw_headered_panel(
-        self,
-        dst: pygame.Surface,
-        rect: pygame.Rect,
-        title: str,
-        title_font: pygame.font.Font,
-        title_color,
-        shadow_color,
-    ) -> pygame.Rect:
-        self._draw_symmetric_panel(
-            dst, rect,
-            fill_top=(34, 42, 58),
-            fill_bottom=(20, 26, 38),
-            border_light=(120, 132, 154),
-            border_dark=(6, 10, 16),
-            accent=(70, 82, 98),
-        )
-
+    def draw_headered_panel(self, dst, rect, title, title_font, title_color, shadow_color):
+        self._draw_symmetric_panel(dst, rect, fill_top=(34, 42, 58), fill_bottom=(20, 26, 38), border_light=(120, 132, 154), border_dark=(6, 10, 16), accent=(70, 82, 98))
         inner = pygame.Rect(rect.x + 10, rect.y + 10, rect.w - 20, rect.h - 20)
-        self._draw_symmetric_panel(
-            dst, inner,
-            fill_top=(40, 48, 64),
-            fill_bottom=(24, 30, 42),
-            border_light=(134, 146, 168),
-            border_dark=(10, 14, 20),
-            accent=(86, 96, 112),
-        )
-
+        self._draw_symmetric_panel(dst, inner, fill_top=(40, 48, 64), fill_bottom=(24, 30, 42), border_light=(134, 146, 168), border_dark=(10, 14, 20), accent=(86, 96, 112))
         header = pygame.Rect(inner.x + 8, inner.y + 8, inner.w - 16, 32)
-        self._draw_symmetric_panel(
-            dst, header,
-            fill_top=(56, 66, 86),
-            fill_bottom=(38, 46, 60),
-            border_light=(146, 156, 176),
-            border_dark=(12, 16, 24),
-            accent=(98, 108, 126),
-        )
-
+        self._draw_symmetric_panel(dst, header, fill_top=(56, 66, 86), fill_bottom=(38, 46, 60), border_light=(146, 156, 176), border_dark=(12, 16, 24), accent=(98, 108, 126))
         title_surf = title_font.render(title, True, title_color)
         title_shadow = title_font.render(title, True, shadow_color)
         tx = header.centerx - title_surf.get_width() // 2
         ty = header.centery - title_surf.get_height() // 2 - 1
-
         line_y = header.centery
         left_start = header.x + 18
         left_end = tx - 16
@@ -428,15 +318,12 @@ class Assets:
         if right_end - right_start > 20:
             pygame.draw.line(dst, (154, 164, 182), (right_start, line_y), (right_end, line_y), 1)
             pygame.draw.line(dst, (74, 84, 98), (right_start + 10, line_y + 2), (right_end - 10, line_y + 2), 1)
-
         dst.blit(title_shadow, (tx + 2, ty + 2))
         dst.blit(title_surf, (tx, ty))
-
         return pygame.Rect(inner.x + 10, header.bottom + 10, inner.w - 20, inner.h - 52)
 
-    def draw_button(self, dst: pygame.Surface, rect: pygame.Rect, style: str, text: str,
-                    font: pygame.font.Font, active: bool = False) -> None:
-        base = self.scaled(f"btn_{style}_{rect.w}_{rect.h}", self.buttons[style], (rect.w, rect.h))
+    def draw_button(self, dst, rect, style, text, font, active=False):
+        base = self.scaled(f'btn_{style}_{rect.w}_{rect.h}', self.buttons[style], (rect.w, rect.h))
         dst.blit(base, rect)
         if active:
             glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
@@ -449,19 +336,11 @@ class Assets:
         dst.blit(shadow, (tx, ty + 1))
         dst.blit(surf, (tx, ty))
 
-    def ship_surface(self, size: int, direction: Dir) -> pygame.Surface:
+    def ship_surface(self, size, direction):
         if direction == Dir.HORIZONTAL:
-            return self.scaled(
-                f"ship_h_{size}",
-                self.ship_h[size],
-                (size * CELL_SIZE - 2, CELL_SIZE - 2),
-            )
-        return self.scaled(
-            f"ship_v_{size}",
-            self.ship_v[size],
-            (CELL_SIZE - 2, size * CELL_SIZE - 2),
-        )
+            return self.scaled(f'ship_h_{size}', self.ship_h[size], (size * CELL_SIZE - 2, CELL_SIZE - 2))
+        return self.scaled(f'ship_v_{size}', self.ship_v[size], (CELL_SIZE - 2, size * CELL_SIZE - 2))
 
-    def effect_surface(self, kind: str) -> pygame.Surface:
-        surf = self.hit if kind == "hit" else self.miss
+    def effect_surface(self, kind):
+        surf = self.hit if kind == 'hit' else self.miss
         return self.scaled(kind, surf, (CELL_SIZE, CELL_SIZE))
