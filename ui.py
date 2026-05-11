@@ -48,9 +48,7 @@ class GameUI:
     # Отрисовка главного меню
     def draw_menu(self):
         title = self.font_title.render('МОРСКОЙ БOЙ', True, TEXT_TITLE)
-        help1 = self.font_small.render('ESC — в меню. В расстановке R поворачивает корабль.', True, TEXT_SUBTLE)
         self.screen.blit(title, (WINDOW_WIDTH // 2 - title.get_width() // 2, 50))
-        self.screen.blit(help1, (WINDOW_WIDTH // 2 - help1.get_width() // 2, 132))
         panel = pygame.Rect(WINDOW_WIDTH // 2 - 250, 180, 500, 300)
         self.assets.draw_panel(self.screen, panel)
         label = self.font_text.render('Сложность для игры против компьютера', True, TEXT_MAIN)
