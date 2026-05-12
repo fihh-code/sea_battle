@@ -160,9 +160,6 @@ class Game:
             else:
                 self.to_menu()
             return
-        if self.state == Screen.GAME_OVER and key == pygame.K_r:
-            self.to_menu()
-            return
         if self.state == Screen.SETUP and key == pygame.K_r:
             # Смена направления корабля
             self.napr = Dir.VERTICAL if self.napr == Dir.HORIZONTAL else Dir.HORIZONTAL
