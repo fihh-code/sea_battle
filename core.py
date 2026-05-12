@@ -49,6 +49,12 @@ class Screen(Enum):
     PAUSE = auto()
     GAME_OVER = auto()
 
+# Уровни слонжости компьютера
+class Difficult(Enum):
+    EASY = auto()
+    MEDIUM = auto()
+    HARD = auto()
+
 # Класс корабля
 class Ship:
 
@@ -181,7 +187,7 @@ class Board:
 # Класс противника-компьютера
 class AI:
 
-    def __init__(self, uroven='medium'):
+    def __init__(self, uroven=Difficult.MEDIUM):
         self.uroven = uroven
         # Очередь клеток для добивания
         self.queue = []
@@ -201,16 +207,16 @@ class AI:
                 return target
         if not svob_klet:
             return (-1, -1)
-        if self.uroven == 'easy':
+        if self.uroven == Difficult.EASY:
             return random.choice(list(svob_klet))
-        if self.uroven == 'medium':
+        if self.uroven == Difficult.MEDIUM:
             return random.choice(list(svob_klet))
         parity = [p for p in svob_klet if (p[0] + p[1]) % 2 == 0]
         return random.choice(parity or list(svob_klet))
 
     # Обработка результата выстрела ИИ
     def proc_res(self, pos, hit, dead, board):
-        if self.uroven == 'easy':
+        if self.uroven == Difficult.EASY:
             return
         if dead:
             self.queue.clear()
@@ -221,7 +227,7 @@ class AI:
         self.popad.append(pos)
         x, y = pos
         cands = []
-        if self.uroven == 'hard' and len(self.popad) >= 2:
+        if self.uroven == Difficult.HARD and len(self.popad) >= 2:
             xs = {hx for hx, _ in self.popad}
             ys = {hy for _, hy in self.popad}
             if len(xs) == 1:
