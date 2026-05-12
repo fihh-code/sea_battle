@@ -48,6 +48,7 @@ class Screen(Enum):
     PASS = auto()
     PAUSE = auto()
     GAME_OVER = auto()
+    TRANSFER = auto()
 
 # Уровни слонжости компьютера
 class Difficult(Enum):

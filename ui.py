@@ -20,6 +20,8 @@ class GameUI:
             self.draw_setup()
         elif self.state == Screen.BATTLE:
             self.draw_battle()
+        elif self.state == Screen.TRANSFER:
+            self.draw_per()
         elif self.state == Screen.PASS:
             self.draw_under_per()
             self.draw_per()
@@ -101,6 +103,8 @@ class GameUI:
 
     # Отрисовка экрана боя
     def draw_battle(self):
+        if self.state == Screen.TRANSFER:
+            self.draw_transfer()
         if self.mode == 'pve':
             title_txt = 'ВАШ ХОД' if self.ochered == 1 else 'ХОД КОМПЬЮТЕРА'
             l_board = self.board_p1

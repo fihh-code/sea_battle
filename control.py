@@ -32,6 +32,8 @@ class Game:
         self.ai = None
         self.mode = None
         self.uroven = 'medium'
+
+        self.change_after_pass = False
         # экраны игры
         self.state = Screen.MENU
         self.next_st = Screen.MENU
@@ -62,6 +64,7 @@ class Game:
         self.vib_kor = 0
         self.napr = Dir.HORIZONTAL
         self.err = ''
+        self.change_after_pass = False
         self.win = None
 
     # Запуск новой игры
@@ -92,10 +95,10 @@ class Game:
         return self.board_p2 if player == 1 else self.board_p1
 
     # Подготовка экрана передачи хода
-    def show_per(self, text, next_st):
+    def show_per(self, text, next_st, state = Screen.PASS):
         self.per_mes = text
         self.next_st = next_st
-        self.state = Screen.PASS
+        self.state = state
 
     def menu_buttons(self):
         cx = WINDOW_WIDTH // 2
@@ -144,9 +147,13 @@ class Game:
 
     # Обработка клавиш
     def key_down(self, key):
-        if self.state == Screen.PASS:
-            self.state = self.next_st
-            return
+        if self.state in (Screen.PASS, Screen.TRANSFER):
+            if self.mode == 'pvp':
+                if self.change_after_pass:
+                    self.ochered = 2 if self.ochered == 1 else 1
+                    self.change_after_pass = False
+                self.state = self.next_st
+                return
         if self.state == Screen.PAUSE:
             if key == pygame.K_ESCAPE:
                 self.state = self.prev_st
@@ -276,8 +283,9 @@ class Game:
             return
         if self.mode == 'pvp':
             if not hit:
-                self.ochered = 2 if self.ochered == 1 else 1
-                self.show_per(f'Передайте экран Игроку {self.ochered}', Screen.BATTLE)
+                next_p = 2 if self.ochered == 1 else 1
+                self.change_after_pass = True
+                self.show_per(f'Передайте экран Игроку {next_p}', Screen.BATTLE, Screen.TRANSFER)
         elif not hit:
             self.ochered = 2
             self.ai_vrem = pygame.time.get_ticks()
