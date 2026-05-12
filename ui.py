@@ -128,8 +128,8 @@ class GameUI:
         r_live = [ship for ship in r_board.ships if not ship.dead]
         stat_panel = pygame.Rect(LEFT_MARGIN, TOP_MARGIN + BOARD_SIZE + 16, WINDOW_WIDTH - LEFT_MARGIN * 2, 166)
         self.assets.draw_panel(self.screen, stat_panel)
-        l_box = pygame.Rect(self.left_board_pos[0], stat_panel.y + 8, 370, 150)
-        r_box = pygame.Rect(self.right_board_pos[0], stat_panel.y + 8, 370, 150)
+        l_box = pygame.Rect(stat_panel.left + 5, stat_panel.y + 8, 370, 150)
+        r_box = pygame.Rect(stat_panel.right - 370 - 5, stat_panel.y + 8, 370, 150)
         l_cont = self.assets.draw_headered_panel(self.screen, l_box, 'РЕЗЕРВ', self.font_text, TEXT_TITLE, TEXT_SHADOW)
         r_cont = self.assets.draw_headered_panel(self.screen, r_box, 'РЕЗЕРВ ПРОТИВНИКА', self.font_text, TEXT_TITLE, TEXT_SHADOW)
         self.draw_icons(l_cont, l_live, 'reserve_left')
